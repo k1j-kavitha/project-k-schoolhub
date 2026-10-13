@@ -1,0 +1,142 @@
+<main class="page-shell">
+  <header class="masthead">
+    <a class="brand" href="/" aria-label="SchoolHub home">
+      <span class="brand-mark" aria-hidden="true">K</span>
+      <span>Project K <span class="brand-light">SchoolHub</span></span>
+    </a>
+    <span class="module-label">STUDENT ADMINISTRATION</span>
+  </header>
+
+  <section class="page-heading" aria-labelledby="page-title">
+    <div>
+      <p class="eyebrow">REGISTRAR'S OFFICE <span aria-hidden="true">/</span> STUDENTS</p>
+      <h1 id="page-title">Student records</h1>
+      <p class="intro">Register new students and keep enrolment details up to date.</p>
+    </div>
+    <div class="record-count" aria-live="polite">
+      <span class="count-number">{{ students().length }}</span>
+      <span class="count-label">{{ students().length === 1 ? 'student' : 'students' }}<br>on record</span>
+    </div>
+  </section>
+
+  @if (feedback(); as notice) {
+    <div class="notice" [class.notice-error]="notice.kind === 'error'" [class.notice-success]="notice.kind === 'success'" role="status" aria-live="polite">
+      <span class="notice-mark" aria-hidden="true">{{ notice.kind === 'success' ? '&#10003;' : '!' }}</span>
+      <span>{{ notice.text }}</span>
+      <button type="button" class="notice-close" aria-label="Dismiss message" (click)="feedback.set(null)">&times;</button>
+    </div>
+  }
+
+  <div class="workspace">
+    <section class="form-panel" aria-labelledby="form-title">
+      <div class="panel-heading">
+        <div class="step-mark">{{ editingStudentId() === null ? '01' : '02' }}</div>
+        <div>
+          <p class="eyebrow">{{ editingStudentId() === null ? 'NEW ENROLMENT' : 'RECORD ' + editingStudentId() }}</p>
+          <h2 id="form-title">{{ editingStudentId() === null ? 'Register a student' : 'Edit student' }}</h2>
+        </div>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="saveStudent()" novalidate>
+        <label class="field-label" for="student-name">Full name <span class="required-mark">*</span></label>
+        <input id="student-name" type="text" formControlName="name" maxlength="100" autocomplete="name" placeholder="e.g. Asha Kumar" [attr.aria-invalid]="fieldError('name') !== null" aria-describedby="name-error">
+        @if (fieldError('name'); as message) {
+          <span class="field-error" id="name-error">{{ message }}</span>
+        }
+
+        <label class="field-label" for="student-age">Age <span class="optional">OPTIONAL</span></label>
+        <input id="student-age" type="number" formControlName="age" inputmode="numeric" placeholder="Enter age">
+
+        <label class="field-label" for="student-course">Course <span class="optional">OPTIONAL</span></label>
+        <input id="student-course" type="text" formControlName="course" maxlength="100" placeholder="e.g. Science" [attr.aria-invalid]="fieldError('course') !== null" aria-describedby="course-error">
+        @if (fieldError('course'); as message) {
+          <span class="field-error" id="course-error">{{ message }}</span>
+        }
+
+        <label class="field-label" for="student-contact">Contact number <span class="optional">OPTIONAL</span></label>
+        <input id="student-contact" type="tel" formControlName="contactNumber" maxlength="15" autocomplete="tel" placeholder="Up to 15 characters" [attr.aria-invalid]="fieldError('contactNumber') !== null" aria-describedby="contact-error">
+        @if (fieldError('contactNumber'); as message) {
+          <span class="field-error" id="contact-error">{{ message }}</span>
+        }
+
+        <div class="form-actions">
+          <button class="primary-button" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Saving...' : editingStudentId() === null ? 'Register student' : 'Save changes' }}
+          </button>
+          @if (editingStudentId() !== null) {
+            <button class="text-button" type="button" (click)="cancelEdit()">Cancel</button>
+          }
+        </div>
+      </form>
+      <p class="form-footnote"><span class="required-mark">*</span> Required field</p>
+    </section>
+
+    <section class="list-panel" aria-labelledby="list-title">
+      <div class="list-heading">
+        <div>
+          <p class="eyebrow">SCHOOL DIRECTORY</p>
+          <h2 id="list-title">Registered students</h2>
+        </div>
+        <button class="refresh-button" type="button" title="Refresh student list" aria-label="Refresh student list" [disabled]="loading()" (click)="loadStudents()">
+          <span aria-hidden="true">&#8635;</span><span class="refresh-label">Refresh</span>
+        </button>
+      </div>
+
+      <label class="search-box" for="student-search">
+        <span aria-hidden="true">&#9906;</span>
+        <input id="student-search" type="search" placeholder="Search by name, course or ID" [value]="searchTerm()" (input)="setSearch($event)">
+      </label>
+
+      @if (detailLoading()) {
+        <div class="detail-panel" role="status">Loading student details...</div>
+      }
+      @if (viewingStudent(); as student) {
+        <aside class="detail-panel" aria-label="Student details">
+          <div class="detail-topline">
+            <div><p class="eyebrow">STUDENT ID {{ student.studentId }}</p><h3>{{ student.name }}</h3></div>
+            <button type="button" class="icon-button" aria-label="Close student details" (click)="viewingStudent.set(null)">&times;</button>
+          </div>
+          <dl class="detail-grid">
+            <div><dt>Age</dt><dd>{{ student.age ?? 'Not provided' }}</dd></div>
+            <div><dt>Course</dt><dd>{{ student.course || 'Not provided' }}</dd></div>
+            <div><dt>Contact number</dt><dd>{{ student.contactNumber || 'Not provided' }}</dd></div>
+          </dl>
+        </aside>
+      }
+
+      @if (loading()) {
+        <div class="empty-state" role="status">Loading student records...</div>
+      } @else if (visibleStudents().length > 0) {
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">STUDENT</th><th scope="col">AGE</th><th scope="col">COURSE</th><th scope="col">CONTACT</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+            </thead>
+            <tbody>
+              @for (student of visibleStudents(); track student.studentId) {
+                <tr>
+                  <td><span class="student-name">{{ student.name }}</span><span class="student-id">ID {{ student.studentId }}</span></td>
+                  <td>{{ student.age ?? '-' }}</td>
+                  <td>{{ student.course || '-' }}</td>
+                  <td>{{ student.contactNumber || '-' }}</td>
+                  <td class="actions-cell">
+                    <button type="button" class="row-action" (click)="viewStudent(student)">View</button>
+                    <button type="button" class="row-action" (click)="editStudent(student)">Edit</button>
+                    <button type="button" class="row-action delete-action" (click)="deleteStudent(student)">Delete</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else if (students().length > 0) {
+        <div class="empty-state"><strong>No matching students</strong><span>Try another name, course or student ID.</span></div>
+      } @else {
+        <div class="empty-state"><strong>No students registered yet</strong><span>New registrations will appear here.</span></div>
+      }
+      <p class="list-footnote">Showing {{ visibleStudents().length }} of {{ students().length }} records</p>
+    </section>
+  </div>
+
+  <footer class="page-footer"><span>PROJECT K SCHOOLHUB</span><span>STUDENT REGISTRATION</span></footer>
+</main>
